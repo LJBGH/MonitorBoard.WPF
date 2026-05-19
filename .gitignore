@@ -1,0 +1,5 @@
+/.vs
+/Src/MonitorBoard.WPF/bin
+/Src/MonitorBoard.WPF/obj
+/Src/MonitorBoard.Communication/bin
+/Src/MonitorBoard.Communication/obj
