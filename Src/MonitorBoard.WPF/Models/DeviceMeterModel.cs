@@ -5,6 +5,24 @@ namespace MonitorBoard.WPF.Models
     public class DeviceMeterModel : NotifyBase
     {
 
+        public bool IsOpenTemperatureSimulated { get; set; } = false;
+
+        public double TemperatureSimulatedMin { get; set; } = -10;
+        public double TemperatureSimulatedMax { get; set; } = 80;
+
+
+        public bool IsOpenHumiditySimulated { get; set; } = false;
+
+        public double HumiditySimulatedMin { get; set; } = 0;
+        public double HumiditySimulatedMax { get; set; } = 100;
+
+
+        public bool IsOpenLuminanceSimulated { get; set; } = false;
+
+        public double LuminanceSimulatedMin { get; set; } = -1;
+        public double LuminanceSimulatedMax { get; set; } = 100;
+
+
         private double _temperatureValue;
 
         /// <summary>

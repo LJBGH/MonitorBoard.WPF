@@ -1,16 +1,18 @@
-﻿using MonitorBoard.Communication.Modbus;
+﻿using LiveCharts;
+using MonitorBoard.Communication.Modbus;
 using MonitorBoard.WPF.Common;
 using MonitorBoard.WPF.Models;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO.Ports;
+using System.Management;
+using System.Text;
 
 namespace MonitorBoard.WPF.ViewModels
 {
     public class MainViewModel : NotifyBase
     {
         public ObservableCollection<PointPositionItemModel> PointPositionItems { get; } = new ObservableCollection<PointPositionItemModel>();
-        public ObservableCollection<LogModel> LogItems { get; } = new ObservableCollection<LogModel>();
-
 
         // 连接状态
         private bool _connState;
@@ -68,6 +70,33 @@ namespace MonitorBoard.WPF.ViewModels
             set { SetProperty<bool>(ref _isMainOpen, value); }
         }
 
+        private double _sysMemory;
+
+        public double SysMemory
+        {
+            get { return _sysMemory; }
+            set { SetProperty<double>(ref _sysMemory, value); }
+        }
+
+        private double _sysCpu;
+
+        public double SysCpu
+        {
+            get { return _sysCpu; }
+            set { SetProperty<double>(ref _sysCpu, value); }
+        }
+
+
+        private string _oledText;
+
+        public string OledText
+        {
+            get { return _oledText; }
+            set { SetProperty<string>(ref _oledText, value); }
+        }
+
+        public string SendText { get; set; } = "Hello";
+
         public int BeudRate { get; set; } = 9600;
         public string Parity { get; set; } = "None";
         public int DataBits { get; set; } = 8;
@@ -78,7 +107,12 @@ namespace MonitorBoard.WPF.ViewModels
         public List<int> DataBitsList { get; set; } = new List<int>();
         public List<string> StopBitsList { get; set; } = new List<string>();
 
-        private static Dictionary<int, List<double>> DeviceMeterData = new Dictionary<int, List<double>>(); // 仪表数据
+
+
+        public ChartValues<double> TemperatureChartValues { get; set; } = new ChartValues<double> { 38, 70, 57, 62, 67, 27, 75, 56, 79, 20, 77, 46, 33, 63, 49, 56, 79, 20, 77, 46 };
+        public ChartValues<double> HumidityChartValues { get; set; } = new ChartValues<double> { 46, 20, 30, 56, 57, 33, 76, 54, 74, 65, 66, 24, 71, 77, 58, 20, 30, 56, 57, 33 };
+        public ChartValues<double> LuminanceChartValues { get; set; } = new ChartValues<double> { 56, 40, 20, 86, 17, 33, 56, 34, 74, 95, 16, 44, 11, 97, 18, 86, 17, 33, 56, 34 };
+        public ObservableCollection<string> XLabels { get; set; } = new ObservableCollection<string> { };
 
         // 消息
         public MessageModel MessageModel { get; set; }
@@ -94,8 +128,11 @@ namespace MonitorBoard.WPF.ViewModels
         public CommandBase LightCommand { get; set; }
 
         public CommandBase MainLightCommand { get; set; }
+        public CommandBase SendTextCommand { get; set; }
+        public CommandBase ReSendTextCommand { get; set; }
 
-
+        private static Dictionary<int, List<double>> DeviceMeterData = new Dictionary<int, List<double>>(); // 仪表数据
+        public ObservableCollection<LogModel> LogItems { get; set; } = new ObservableCollection<LogModel>(); // 文本发送记录
         public MainViewModel()
         {
             MessageModel = new MessageModel();
@@ -122,6 +159,18 @@ namespace MonitorBoard.WPF.ViewModels
                 DoCanExecute = new Func<object, bool>((o) => { return true; })
             };
 
+            SendTextCommand = new CommandBase
+            {
+                DoExecute = new Action<object>((o) => OnSendText(o)),
+                DoCanExecute = new Func<object, bool>((o) => { return true; })
+            };
+
+            ReSendTextCommand = new CommandBase
+            {
+                DoExecute = new Action<object>((o) => OnReSendText(o)),
+                DoCanExecute = new Func<object, bool>((o) => { return true; })
+            };
+
             InitData();
         }
 
@@ -141,6 +190,35 @@ namespace MonitorBoard.WPF.ViewModels
             DeviceMeterData.Add(1, new List<double> { });
             DeviceMeterData.Add(2, new List<double> { });
 
+            LogItems.Add(new LogModel { LogContext = "Hello001", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello002", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello003", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello004", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello005", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello006", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello007", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello008", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello009", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello010", SendTime = DateTime.Now });
+            LogItems.Add(new LogModel { LogContext = "Hello011", SendTime = DateTime.Now });
+
+            var now = DateTime.Now;
+            // 初始化图标Lbale
+            for (int i = 19; i > 0; i--)
+            {
+                XLabels.Add(now.AddMilliseconds(-(i * 3)).ToString("ss"));
+            }
+
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(5000);
+
+                    MonitorSystemSource();
+                }
+            });
+
             ShowMessage("系统提示", "等待连接设备");
         }
 
@@ -157,11 +235,6 @@ namespace MonitorBoard.WPF.ViewModels
             OnClose();
 
             modbusRtu = new ModbusRtu(PortName, BeudRate, DataBits, (Parity)Enum.Parse(typeof(Parity), Parity), (StopBits)Enum.Parse(typeof(StopBits), StopBits), 2000);
-            //serialPort.PortName = PortName;
-            //serialPort.BaudRate = BeudRate;
-            //serialPort.Parity = (Parity)Enum.Parse(typeof(Parity), Parity);
-            //serialPort.DataBits = DataBits;
-            //serialPort.StopBits = (StopBits)Enum.Parse(typeof(StopBits), StopBits);
             var result = modbusRtu.Open(1000);
 
             if (!result.Status)
@@ -225,7 +298,7 @@ namespace MonitorBoard.WPF.ViewModels
                 if (allOn)
                     IsMainOpen = true;
                 else
-                    IsMainOpen = false; 
+                    IsMainOpen = false;
 
                 var str = status ? "关闭" : "打开";
                 ShowMessage("操作成功", $"灯珠{str}成功!");
@@ -260,7 +333,7 @@ namespace MonitorBoard.WPF.ViewModels
                         item.IsChecked = true;
                     }
                 }
-                else 
+                else
                 {
                     var result = modbusRtu.WriteCoils(1, 0, DeviceLights.Select(x => false).ToList());
                     if (!result.Status)
@@ -284,7 +357,47 @@ namespace MonitorBoard.WPF.ViewModels
                 ShowMessage("操作异常", "灯珠切换失败", "Red");
             }
         }
-        
+
+        #region 发送文本
+        private void OnSendText(object obj)
+        {
+            try
+            {
+                if (SendText.IsNull())
+                {
+                    throw new Exception("请输入消息内容");
+                }
+
+                if (SendText.Length > 60)
+                {
+                    throw new Exception("消息内容不能超过60");
+                }
+
+                SendOledText(SendText);
+            }
+            catch (Exception ex)
+            {
+                this.ShowMessage("发送异常", ex.Message, "Orange");
+            }
+        }
+        private void SendOledText(string oledText)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(oledText);
+            var result = modbusRtu.WriteBytes(1, 08, bytes.ToList());
+            if (!result.Status)
+            {
+                throw new Exception(result.Message);
+            }
+
+            LogItems.Insert(0, new LogModel { LogContext = oledText, SendTime = DateTime.Now });
+            OledText = oledText;
+        }
+
+        private void OnReSendText(object obj)
+        {
+            SendOledText(obj.ToString());
+        }
+        #endregion
 
         #region 读取设备数据
         private void OnMonitor()
@@ -318,15 +431,64 @@ namespace MonitorBoard.WPF.ViewModels
                     double humidityValue = Math.Round(result.Datas[1] / 10.0, 1);
                     double luminanceValue = Math.Round(result.Datas[2] / 10.0, 1);
 
+                    if (DeviceMeterModel.IsOpenTemperatureSimulated)
+                    {
+                        var random = Random(DeviceMeterModel.TemperatureSimulatedMin, DeviceMeterModel.TemperatureSimulatedMax);
+                        DeviceMeterModel.TemperatureValue = random;
+                        DeviceMeterData[0].Add(random);
+                        TemperatureChartValues.Add(random);
+                    }
+                    else
+                    {
+                        DeviceMeterModel.TemperatureValue = temperatureValue;
+                        DeviceMeterData[0].Add(temperatureValue);
+                        TemperatureChartValues.Add(temperatureValue);
+                    }
 
-                    DeviceMeterModel.TemperatureValue = temperatureValue;
-                    DeviceMeterModel.HumidityValue = humidityValue;
-                    DeviceMeterModel.LuminanceValue = luminanceValue;
+                    if (DeviceMeterModel.IsOpenHumiditySimulated)
+                    {
+                        var random = Random(DeviceMeterModel.HumiditySimulatedMin, DeviceMeterModel.HumiditySimulatedMax);
+                        DeviceMeterModel.HumidityValue = random;
+                        DeviceMeterData[1].Add(random);
+                        HumidityChartValues.Add(random);
+                    }
+                    else
+                    {
+                        DeviceMeterModel.HumidityValue = humidityValue;
+                        DeviceMeterData[1].Add(humidityValue);
+                        HumidityChartValues.Add(humidityValue);
+                    }
 
-                    DeviceMeterData[0].Add(temperatureValue);
-                    DeviceMeterData[1].Add(humidityValue);
-                    DeviceMeterData[2].Add(luminanceValue);
+                    if (DeviceMeterModel.IsOpenLuminanceSimulated)
+                    {
+                        var random = Random(DeviceMeterModel.LuminanceSimulatedMin, DeviceMeterModel.LuminanceSimulatedMax);
+                        DeviceMeterModel.LuminanceValue = random;
+                        DeviceMeterData[2].Add(random);
+                        LuminanceChartValues.Add(random);
+                    }
+                    else
+                    {
+                        DeviceMeterModel.LuminanceValue = luminanceValue;
+                        DeviceMeterData[2].Add(luminanceValue);
+                        LuminanceChartValues.Add(luminanceValue);
+                    }
 
+
+
+                    // 移除第一个
+                    if (DeviceMeterData[0].Count > 20) DeviceMeterData[0].RemoveAt(0);
+                    if (DeviceMeterData[1].Count > 20) DeviceMeterData[1].RemoveAt(0);
+                    if (DeviceMeterData[2].Count > 20) DeviceMeterData[2].RemoveAt(0);
+
+
+                    if (TemperatureChartValues.Count > 20) TemperatureChartValues.RemoveAt(0);
+                    if (HumidityChartValues.Count > 20) HumidityChartValues.RemoveAt(0);
+                    if (LuminanceChartValues.Count > 20) LuminanceChartValues.RemoveAt(0);
+
+                    XLabels.RemoveAt(0);
+                    XLabels.Add(DateTime.Now.ToString("ss"));
+
+                    // 计算最大最小值
                     DeviceMeterModel.TemperatureMin = DeviceMeterData[0].Min();
                     DeviceMeterModel.TemperatureMax = DeviceMeterData[0].Max();
 
@@ -359,6 +521,67 @@ namespace MonitorBoard.WPF.ViewModels
                     }
                 }
             }
+        }
+
+        private Random random = new Random();
+
+        private double Random(double min, double max)
+        {
+            return random.Next((int)min, (int)max);
+        }
+        #endregion
+
+        #region 系统资源监控
+        // 系统资源监控
+        private async Task MonitorSystemSource()
+        {
+            try
+            {
+                // CPU
+                using var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                cpuCounter.NextValue(); // 初始调用
+                await Task.Delay(1000);
+
+                SysCpu = (double)Math.Round(cpuCounter.NextValue(), 2);
+
+                // 内存（WMI）
+                // 获取总物理内存（来自 Win32_ComputerSystem）
+                ulong totalMemory = 0;
+                using (var searcher1 = new ManagementObjectSearcher("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem"))
+                {
+                    foreach (var obj in searcher1.Get())
+                    {
+                        totalMemory = Convert.ToUInt64(obj["TotalPhysicalMemory"]);
+                        break;
+                    }
+                }
+
+                // 获取可用内存（来自性能计数器，单位：KB）
+                ulong availableKBytes = 0;
+                using (var searcher2 = new ManagementObjectSearcher("SELECT AvailableKBytes FROM Win32_PerfFormattedData_PerfOS_Memory"))
+                {
+                    foreach (var obj in searcher2.Get())
+                    {
+                        availableKBytes = Convert.ToUInt64(obj["AvailableKBytes"]);
+                        break;
+                    }
+                }
+
+                if (totalMemory > 0)
+                {
+                    double availableRatio = (double)(availableKBytes * 1024) / (double)totalMemory * 100; // 可用内存比例
+                    SysMemory = Math.Round(availableRatio, 2);
+                }
+                else
+                {
+                    SysMemory = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取系统资源信息失败: {ex}");
+            }
+
         }
         #endregion
     }

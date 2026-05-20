@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:MonitorBoard.WPF.Views" 
         xmlns:cont="clr-namespace:MonitorBoard.WPF.Controls"
         xmlns:lvc ="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        xmlns:conv ="clr-namespace:MonitorBoard.WPF.Common.Converter"
         mc:Ignorable="d"
         Title="学习卡监控大屏"
         WindowStartupLocation="CenterScreen"
@@ -19,6 +20,7 @@
     <Window.Resources>
         <FontFamily x:Key="Jinbuti">../Assets/Fonts/#钉钉进步体</FontFamily>
         <FontFamily x:Key="IconFont">../Assets/Fonts/#iconfont</FontFamily>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <!--按钮通用样式-->
         <Style TargetType="Button" x:Key="ControlButtonStyle">
             <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
@@ -426,7 +428,7 @@
                         </Grid.RowDefinitions>
                         <Border Margin="20,5" BorderBrush="#2000CFF8" CornerRadius="5" BorderThickness="1">
                             <TextBlock Foreground="#00CFF8" FontFamily="SimSun-ExtB"
-                                       Text="" FontSize="13"></TextBlock>
+                                       Text="{Binding OledText}" FontSize="13"></TextBlock>
                         </Border>
                         <TextBlock Grid.Row="1" Margin="15,0" Text="输入显示文本" Foreground="#9AAA" VerticalAlignment="Top"></TextBlock>
                         <TextBlock Grid.Row="1" Margin="15,0" Foreground="#9AAA" FontSize="10" 
@@ -437,10 +439,12 @@
                         </TextBlock>
                         <TextBox Grid.Row="2" Margin="20,0" Foreground="#AFFF" Padding="5" 
                                  TextWrapping="Wrap" Background="#2000" BorderThickness="0"
-                                 Name="tb_send_text"></TextBox>
+                                 Name="tb_send_text"
+                                 Text="{Binding SendText}"></TextBox>
                         <Button Grid.Row="3" Margin="18,5" Content="发送文本" Foreground="Black"
                                 Background="#992F67BC"
-                                Style="{StaticResource SendButtonStyle}"></Button>
+                                Style="{StaticResource SendButtonStyle}"
+                                Command="{Binding SendTextCommand}"></Button>
                     </Grid>
                 </GroupBox>
                 <GroupBox Header="文本发送日志" Tag="&#xe8ba;" Style="{StaticResource GroupBoxStyle}">
@@ -458,7 +462,9 @@
                                         <Border Width="8" Height="8" CornerRadius="50" Background="Orange"></Border>
                                         <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="5,0">
                                             <Hyperlink TextDecorations="None"
-                                                       Foreground="#409EFE">[重发]</Hyperlink>
+                                                       Foreground="#409EFE"
+                                                       Command="{Binding DataContext.ReSendTextCommand,RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       CommandParameter="{Binding LogContext}">[重发]</Hyperlink>
                                         </TextBlock>
                                         <TextBlock Grid.Column="2" Text="{Binding LogContext}" Margin="5,0"
                                                    Foreground="#B2FFFFFF"></TextBlock>
@@ -534,15 +540,15 @@
                             <CheckBox Grid.Row="3" Margin="0,10,0,0" VerticalAlignment="Center" HorizontalAlignment="Center"
                                       Content="启动模拟数据"
                                       Style="{StaticResource SimulatorChecoBoxStyle}"
-                                      IsChecked="True">
+                                      IsChecked="{Binding DeviceMeterModel.IsOpenTemperatureSimulated}">
                             </CheckBox>
                             <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <TextBlock Text="模拟区间" Width="30" Foreground="#3DDD" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                 <Border Width="50" Margin="5,0" Background="#33596C86" CornerRadius="2" BorderThickness="0" >
                                     <StackPanel>
-                                        <TextBlock Text="-10" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
+                                        <TextBlock Text="{Binding DeviceMeterModel.TemperatureSimulatedMin}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
                                         <Border Margin="5,0" CornerRadius="1" Height="1" Background="#3DDD"></Border>
-                                        <TextBlock Text="80" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
+                                        <TextBlock Text="{Binding DeviceMeterModel.TemperatureSimulatedMax}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -600,15 +606,16 @@
                             </TextBlock>
                             <CheckBox Grid.Row="3" Margin="0,10,0,0" VerticalAlignment="Center" HorizontalAlignment="Center"
                                       Content="启动模拟数据"
-                                      Style="{StaticResource SimulatorChecoBoxStyle}">
+                                      Style="{StaticResource SimulatorChecoBoxStyle}"
+                                      IsChecked="{Binding DeviceMeterModel.IsOpenHumiditySimulated}">
                             </CheckBox>
                             <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <TextBlock Text="模拟区间" Width="30" Foreground="#3DDD" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                 <Border Width="50" Margin="5,0" Background="#33596C86" CornerRadius="2" BorderThickness="0" >
                                     <StackPanel>
-                                        <TextBlock Text="-10" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
+                                        <TextBlock Text="{Binding DeviceMeterModel.HumiditySimulatedMin}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
                                         <Border Margin="5,0" CornerRadius="1" Height="1" Background="#3DDD"></Border>
-                                        <TextBlock Text="80" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
+                                        <TextBlock Text="{Binding DeviceMeterModel.HumiditySimulatedMax}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -666,15 +673,16 @@
                             </TextBlock>
                             <CheckBox Grid.Row="3" Margin="0,10,0,0" VerticalAlignment="Center" HorizontalAlignment="Center"
                                       Content="启动模拟数据"
-                                      Style="{StaticResource SimulatorChecoBoxStyle}">
+                                      Style="{StaticResource SimulatorChecoBoxStyle}"
+                                      IsChecked="{Binding DeviceMeterModel.IsOpenLuminanceSimulated}">
                             </CheckBox>
                             <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <TextBlock Text="模拟区间" Width="30" Foreground="#3DDD" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                 <Border Width="50" Margin="5,0" Background="#33596C86" CornerRadius="2" BorderThickness="0" >
                                     <StackPanel>
-                                        <TextBlock Text="-10" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
+                                        <TextBlock Text="{Binding DeviceMeterModel.LuminanceSimulatedMin}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"  />
                                         <Border Margin="5,0" CornerRadius="1" Height="1" Background="#3DDD"></Border>
-                                        <TextBlock Text="80" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
+                                        <TextBlock Text="{Binding DeviceMeterModel.LuminanceSimulatedMax}" Margin="0,3" Foreground="#99FFFFFF" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"></TextBlock>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -686,18 +694,21 @@
                     <Grid>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right"
                                     Margin="0,-20,10,0" TextBlock.FontSize="10">
-                            <CheckBox Content="温度" IsChecked="False" Background="Orange" Template="{StaticResource LintChatButtonTemp}"/>
-                            <CheckBox Content="湿度" IsChecked="False" Background="Green" Template="{StaticResource LintChatButtonTemp}"/>
-                            <CheckBox Content="亮度" IsChecked="True" Background="LightBlue" Template="{StaticResource LintChatButtonTemp}"/>
+                            <CheckBox Content="温度" Background="Orange" Template="{StaticResource LintChatButtonTemp}"
+                                      IsChecked="True" Name="temperatureSwitchBox"/>
+                            <CheckBox Content="湿度"  Background="Green" Template="{StaticResource LintChatButtonTemp}"
+                                      IsChecked="True" Name="humiditySwitchBox"/>
+                            <CheckBox Content="亮度" Background="LightBlue" Template="{StaticResource LintChatButtonTemp}"
+                                      IsChecked="False"  Name="luminanceSwitchBox"/>
                         </StackPanel>
                         <lvc:CartesianChart Margin="10,5">
                             <lvc:CartesianChart.Series>
-                                <lvc:LineSeries Values=""
-                                            PointGeometrySize="0"
-                                            Stroke="#88FF9000"
-                                            Title="温度"
-                                            Visibility="Visible"
-                                            StrokeThickness="1">
+                                <lvc:LineSeries Values="{Binding TemperatureChartValues}"
+                                                PointGeometrySize="0"
+                                                Stroke="#88FF9000"
+                                                Title="温度"
+                                                Visibility="{Binding IsChecked, Source={x:Reference temperatureSwitchBox}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                StrokeThickness="1">
                                     <lvc:LineSeries.Fill>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                             <GradientStop Color="#88FF9000" Offset="0"/>
@@ -705,12 +716,12 @@
                                         </LinearGradientBrush>
                                     </lvc:LineSeries.Fill>
                                 </lvc:LineSeries>
-                                <lvc:LineSeries Values=""
-                                     PointGeometrySize="0"
-                                     Stroke="Green"
-                                     Title="湿度"
-                                     Visibility="Visible"
-                                     StrokeThickness="1">
+                                <lvc:LineSeries Values="{Binding HumidityChartValues}"
+                                             PointGeometrySize="0"
+                                             Stroke="Green"
+                                             Title="湿度"
+                                             Visibility="{Binding IsChecked, Source={x:Reference humiditySwitchBox}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                             StrokeThickness="1">
                                     <lvc:LineSeries.Fill>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                             <GradientStop Color="Green" Offset="0"/>
@@ -718,12 +729,12 @@
                                         </LinearGradientBrush>
                                     </lvc:LineSeries.Fill>
                                 </lvc:LineSeries>
-                                <lvc:LineSeries Values=""
-                                     PointGeometrySize="0"
-                                     Stroke="LightBlue"
-                                     Title="亮度"
-                                     Visibility="Visible"
-                                     StrokeThickness="1">
+                                <lvc:LineSeries Values="{Binding LuminanceChartValues}"
+                                             PointGeometrySize="0"
+                                             Stroke="LightBlue"
+                                             Title="亮度"
+                                             Visibility="{Binding IsChecked, Source={x:Reference luminanceSwitchBox}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                             StrokeThickness="1">
                                     <lvc:LineSeries.Fill>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                             <GradientStop Color="LightBlue" Offset="0"/>
@@ -733,7 +744,7 @@
                                 </lvc:LineSeries>
                             </lvc:CartesianChart.Series>
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Labels="" Foreground="#3FFF">
+                                <lvc:Axis Labels="{Binding}" Foreground="#3FFF">
                                     <lvc:Axis.Separator>
                                         <lvc:Separator Step="1" StrokeThickness="0"/>
                                     </lvc:Axis.Separator>
@@ -811,8 +822,8 @@
                 <GroupBox Grid.Row="2"
                      Header="资源占用率" Tag="&#xe8ba;" Style="{StaticResource GroupBoxStyle}">
                     <UniformGrid Rows="1" Columns="2">
-                        <cont:DataBlock Margin="20" Value="50" Header="内存" />
-                        <cont:DataBlock Margin="20" Value="15.3" Header="CPU"/>
+                        <cont:DataBlock Margin="20" Value="{Binding SysMemory}" Header="内存" />
+                        <cont:DataBlock Margin="20" Value="{Binding SysCpu}" Header="CPU"/>
                     </UniformGrid>
                 </GroupBox>
             </Grid>
