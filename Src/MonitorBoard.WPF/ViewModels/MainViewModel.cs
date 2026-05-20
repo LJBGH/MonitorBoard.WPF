@@ -365,12 +365,18 @@ namespace MonitorBoard.WPF.ViewModels
             {
                 if (SendText.IsNull())
                 {
-                    throw new Exception("请输入消息内容");
+                    throw new Exception("请输入有效英文字符");
                 }
 
                 if (SendText.Length > 60)
                 {
                     throw new Exception("消息内容不能超过60");
+                }
+
+                // ASCII字符为0-127 中文及特殊符号是大于127的
+                if (this.SendText.ToList().Exists(s => (int)s > 127))
+                {
+                    throw new Exception("包含无效字符");
                 }
 
                 SendOledText(SendText);
@@ -382,15 +388,18 @@ namespace MonitorBoard.WPF.ViewModels
         }
         private void SendOledText(string oledText)
         {
-            byte[] bytes = Encoding.ASCII.GetBytes(oledText);
-            var result = modbusRtu.WriteBytes(1, 08, bytes.ToList());
-            if (!result.Status)
+            if (modbusRtu != null) 
             {
-                throw new Exception(result.Message);
-            }
+                byte[] bytes = Encoding.ASCII.GetBytes(oledText);
+                var result = modbusRtu.WriteBytes(1, 08, bytes.ToList());
+                if (!result.Status)
+                {
+                    throw new Exception(result.Message);
+                }
 
-            LogItems.Insert(0, new LogModel { LogContext = oledText, SendTime = DateTime.Now });
-            OledText = oledText;
+                LogItems.Insert(0, new LogModel { LogContext = oledText, SendTime = DateTime.Now });
+                OledText = oledText;
+            }
         }
 
         private void OnReSendText(object obj)
